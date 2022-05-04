@@ -1,20 +1,22 @@
 #!/usr/bin/python3
 
 import paho.mqtt.client as mqtt
-import json, os, sys
+import json, os, sys, urllib
 
-def publish(data):
-
-	base_path = os.path.abspath(os.path.dirname(sys.argv[0]))
-	config_file = os.path.join(base_path, 'config.json')
-
-	with open(config_file) as fp:
-		config = json.load(fp)
+def publish(host, topic, data):
 
 	broker = mqtt.Client('status')
-	broker.connect(config['host'])
-	broker.publish(config['topic'], json.dumps(data))
+	broker.connect(host)
+	broker.publish(topic, json.dumps(data))
 	broker.disconnect()
+
+def getremotejson(url):
+	operUrl = urllib.request.urlopen(url)
+	if(operUrl.getcode()==200):
+		data = json.loads(operUrl.read())
+	else:
+		data = {}
+	return data
 
 def diskuse():
 
@@ -45,8 +47,18 @@ def diskuse():
 
 	return ret
 
+base_path = os.path.abspath(os.path.dirname(sys.argv[0]))
+config_file = os.path.join(base_path, 'config.json')
+
+with open(config_file) as fp:
+	config = json.load(fp)
+
 data = {}
 data['disks'] = diskuse()
+if 'apis' in config:
+	for kk in config['apis'].keys():
+		k = str(kk)
+		data[k] = getremotejson(config['apis'][k])
 
-publish(data)
+publish(config['host'], config['topic'], data)
 
