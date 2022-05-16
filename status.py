@@ -18,6 +18,38 @@ def getremotejson(url):
 		data = {}
 	return data
 
+#               0    Under-voltage detected
+#               1    Arm frequency capped
+#               2    Currently throttled
+#               3    Soft temperature limit active
+#              16    Under-voltage has occurred
+#              17    Arm frequency capping has occurred
+#              18    Throttling has occurred
+#              19    Soft temperature limit has occurred
+
+def power():
+
+	cmd = "vcgencmd get_throttled | sed 's/^throttled=//'"
+	with os.popen(cmd) as sp:
+		data = int(sp.read().strip(), 0)
+	ret = []
+	for i in range(0, 19):
+		ovr = pow(2, (18 - i))
+		if data>=ovr:
+			data = data - ovr
+			ret.append(True)
+		else:
+			ret.append(False)
+	return ret
+
+def temperature():
+
+	cmd = "vcgencmd measure_temp | sed 's/^temp=//' | sed \"s/'/|/\""
+	with os.popen(cmd) as sp:
+		data = sp.read().strip().split("|")
+	ret = {'value': float(data[0]), 'unit': data[1]}
+	return ret
+
 def diskuse():
 
 	cmd = "df | sed 's/  */|/g'"
@@ -54,6 +86,8 @@ with open(config_file) as fp:
 	config = json.load(fp)
 
 data = {}
+data['temperature'] = temperature()
+data['power'] = power()
 data['disks'] = diskuse()
 if 'apis' in config:
 	for kk in config['apis'].keys():
